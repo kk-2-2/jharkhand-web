@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explore Jharkhand - The Land of Forests</title>
+    <!-- Chosen Palette: Jharkhand Natural Tones -->
+    <!-- Application Structure Plan: The application is designed as a single-page dashboard for prospective tourists. A sticky top navigation allows users to jump to thematic sections effortlessly. The structure prioritizes a task-oriented user flow: planning a trip first (AI Planner), exploring destinations (Explore, Map), managing logistics (Travel, Food), and finally diving into local culture (Marketplace, Guides). This non-linear, thematic structure is more intuitive for travel planning than a simple linear report, allowing users to access the information they need, when they need it, fostering a sense of discovery and control. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Trip Itinerary Planning -> Goal: Organize -> Viz/Method: Interactive Form & Dynamic Text Block -> Interaction: User selects options, JS generates a sample plan. -> Justification: Provides a personalized, actionable output for users. -> Library: Vanilla JS.
+        - Report Info: Tourist Spots & Hidden Gems -> Goal: Inform -> Viz/Method: Tabbed Card Grid -> Interaction: Click tabs to switch between categories. Hover on cards for subtle effects. -> Justification: Efficiently organizes a large amount of content in a visually scannable format. -> Library: Vanilla JS.
+        - Report Info: Geographical Locations of Attractions -> Goal: Relationships -> Viz/Method: Pseudo-Interactive Map (HTML/CSS hotspots on a background) -> Interaction: Clicking a hotspot reveals an info card about the location. -> Justification: Simulates map functionality and spatial relationships without needing external map libraries or SVG, directly linking geography to content. -> Library: Vanilla JS.
+        - Report Info: Travel Cost Data -> Goal: Compare -> Viz/Method: Interactive Bar Chart & HTML Tables -> Interaction: User form input simulates search, JS populates tables with mock data and Chart.js renders a visual cost summary. -> Justification: The chart offers a quick visual comparison of costs, while tables provide detailed (mock) data, addressing different user needs for information consumption. -> Library: Chart.js, Vanilla JS.
+        - Report Info: Local Culture, Food, Handicrafts -> Goal: Inform -> Viz/Method: Card-based gallery layout -> Interaction: Simple visual browsing. -> Justification: A visually rich format that is perfect for showcasing cultural elements like art and food. -> Library: N/A.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF8;
+            color: #3a4d39;
+        }
+        .bg-primary { background-color: #ECE3CE; }
+        .bg-secondary { background-color: #739072; }
+        .text-primary { color: #4F6F52; }
+        .text-secondary { color: #ECE3CE; }
+        .accent-color { background-color: #D2A165; }
+        .nav-link {
+            transition: color 0.3s, border-bottom-color 0.3s;
+            border-bottom: 2px solid transparent;
+        }
+        .nav-link:hover, .nav-link.active {
+            color: #D2A165;
+            border-bottom-color: #D2A165;
+        }
+        .card {
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .map-container {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            margin: auto;
+            aspect-ratio: 16 / 10;
+            background-color: #c8d5b9;
+            border-radius: 0.75rem;
+            border: 4px solid #739072;
+        }
+        .map-hotspot {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background-color: #D2A165;
+            border-radius: 50%;
+            border: 2px solid white;
+            cursor: pointer;
+            transition: transform 0.2s, background-color 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .map-hotspot:hover {
+            transform: scale(1.5);
+            background-color: #e59439;
+        }
+        .map-hotspot .tooltip {
+            visibility: hidden;
+            width: 120px;
+            background-color: #4F6F52;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 0;
+            position: absolute;
+            z-index: 1;
+            bottom: 150%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .map-hotspot:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 50;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 2rem;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 600px;
+            border-radius: 0.5rem;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+    </style>
+</head>
+<body class="bg-primary">
+
+    <header class="bg-secondary text-secondary shadow-md sticky top-0 z-40">
+        <nav class="container mx-auto px-6 py-3 flex justify-between items-center">
+            <h1 class="text-2xl font-bold">Explore Jharkhand</h1>
+            <div class="hidden md:flex space-x-6">
+                <a href="#planner" class="nav-link">AI Planner</a>
+                <a href="#map" class="nav-link">Map</a>
+                <a href="#explore" class="nav-link">Explore</a>
+                <a href="#travel" class="nav-link">Travel</a>
+                <a href="#food" class="nav-link">Food</a>
+                <a href="#culture" class="nav-link">Culture</a>
+            </div>
+            <button id="mobile-menu-button" class="md:hidden focus:outline-none">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+            </button>
+        </nav>
+        <div id="mobile-menu" class="hidden md:hidden px-6 pt-2 pb-4">
+             <a href="#planner" class="block py-2 nav-link">AI Planner</a>
+             <a href="#map" class="block py-2 nav-link">Map</a>
+             <a href="#explore" class="block py-2 nav-link">Explore</a>
+             <a href="#travel" class="block py-2 nav-link">Travel</a>
+             <a href="#food" class="block py-2 nav-link">Food</a>
+             <a href="#culture" class="block py-2 nav-link">Culture</a>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 md:p-8">
+        
+        <section id="hero" class="text-center my-12">
+             <h2 class="text-5xl font-extrabold text-primary mb-4">Discover the Soul of India</h2>
+             <p class="text-lg text-gray-700 max-w-2xl mx-auto">From majestic waterfalls and dense forests to rich tribal culture and historical landmarks, Jharkhand offers a unique and unforgettable journey. Plan your adventure today!</p>
+        </section>
+
+        <section id="planner" class="my-16 p-8 card">
+            <h3 class="text-3xl font-bold text-primary text-center mb-2">AI-Powered Trip Planner</h3>
+            <p class="text-center text-gray-600 mb-6">Let's craft your perfect Jharkhand itinerary. Tell us your preferences, and our planner will create a customized journey for you.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div>
+                    <label for="destination" class="block text-sm font-medium text-gray-700">Destination</label>
+                    <select id="destination" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                        <option>Ranchi & Surrounds</option>
+                        <option>Jamshedpur & Dalma Hills</option>
+                        <option>Netarhat (Queen of Chotanagpur)</option>
+                        <option>Deoghar (Spiritual Circuit)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="duration" class="block text-sm font-medium text-gray-700">Duration (days)</label>
+                    <input type="number" id="duration" value="3" min="1" max="10" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                </div>
+                <div>
+                    <label for="interest" class="block text-sm font-medium text-gray-700">Primary Interest</label>
+                    <select id="interest" class="mt-1 block w-full p-2 border border-gray-300 rounded-md shadow-sm">
+                        <option>Nature & Wildlife</option>
+                        <option>History & Culture</option>
+                        <option>Spiritual & Wellness</option>
+                        <option>Adventure</option>
+                    </select>
+                </div>
+            </div>
+            <div class="text-center">
+                <button id="generate-plan-btn" class="bg-secondary text-secondary font-bold py-3 px-8 rounded-lg hover:bg-green-800 transition">Generate Plan</button>
+            </div>
+            <div id="plan-output" class="mt-8 hidden p-6 bg-green-50 rounded-lg">
+                <h4 class="text-2xl font-bold text-primary mb-4">Your Custom Itinerary</h4>
+                <div id="plan-content"></div>
+            </div>
+        </section>
+
+        <section id="map" class="my-16">
+            <h3 class="text-3xl font-bold text-primary text-center mb-2">Interactive Destination Map</h3>
+            <p class="text-center text-gray-600 mb-6">Click on the markers to get a preview of Jharkhand's major tourist and cultural hubs. Explore the geography of your next adventure.</p>
+            <div class="map-container">
+                <div class="map-hotspot" style="top: 45%; left: 40%;" data-spot="ranchi">
+                    <span class="tooltip">Ranchi</span>
+                </div>
+                <div class="map-hotspot" style="top: 65%; left: 60%;" data-spot="jamshedpur">
+                    <span class="tooltip">Jamshedpur</span>
+                </div>
+                <div class="map-hotspot" style="top: 30%; left: 15%;" data-spot="netarhat">
+                    <span class="tooltip">Netarhat</span>
+                </div>
+                <div class="map-hotspot" style="top: 35%; left: 75%;" data-spot="deoghar">
+                    <span class="tooltip">Deoghar</span>
+                </div>
+                 <div class="map-hotspot" style="top: 20%; left: 35%;" data-spot="hazaribagh">
+                    <span class="tooltip">Hazaribagh</span>
+                </div>
+            </div>
+        </section>
+        
+        <div id="map-modal" class="modal">
+            <div class="modal-content">
+                <span id="close-modal" class="float-right text-2xl font-bold cursor-pointer">&times;</span>
+                <h4 id="modal-title" class="text-2xl font-bold text-primary mb-4"></h4>
+                <p id="modal-description" class="text-gray-700"></p>
+            </div>
+        </div>
+
+        <section id="explore" class="my-16">
+            <h3 class="text-3xl font-bold text-primary text-center mb-6">Explore the Wonders</h3>
+            <div class="flex justify-center mb-6 border-b-2 border-gray-200">
+                <button class="tab-btn active p-4 font-semibold border-b-4 border-secondary text-secondary" data-tab="attractions">Major Attractions</button>
+                <button class="tab-btn p-4 font-semibold text-gray-500" data-tab="gems">Hidden Gems</button>
+            </div>
+
+            <div id="attractions-content" class="tab-content grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            </div>
+
+            <div id="gems-content" class="tab-content hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            </div>
+        </section>
+
+        <section id="travel" class="my-16">
+            <h3 class="text-3xl font-bold text-primary text-center mb-6">Compare Travel Prices</h3>
+            <div class="card p-8">
+                <div class="flex justify-center mb-6 border-b-2 border-gray-200">
+                    <button class="travel-tab-btn active p-4 font-semibold border-b-4 border-secondary text-secondary" data-tab="flights">Flights</button>
+                    <button class="travel-tab-btn p-4 font-semibold text-gray-500" data-tab="trains">Trains</button>
+                    <button class="travel-tab-btn p-4 font-semibold text-gray-500" data-tab="hotels">Hotels</button>
+                </div>
+                <div id="price-comparison-forms">
+                    <p class="text-center text-gray-600 mb-6">Get an estimate for your travel expenses. This is a simulation to help you budget your trip.</p>
+                </div>
+                <div class="text-center mb-8">
+                    <button id="search-prices-btn" class="bg-secondary text-secondary font-bold py-3 px-8 rounded-lg hover:bg-green-800 transition">Show Price Estimates</button>
+                </div>
+                <div id="price-results" class="hidden">
+                    <h4 class="text-2xl font-bold text-primary mb-4 text-center">Estimated Costs</h4>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="py-2 px-4 text-left">Provider/Hotel</th>
+                                    <th class="py-2 px-4 text-left">Type/Route</th>
+                                    <th class="py-2 px-4 text-right">Estimated Price (INR)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="price-table-body">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-8">
+                        <h4 class="text-xl font-bold text-primary mb-4 text-center">Visual Price Comparison</h4>
+                        <div class="chart-container">
+                            <canvas id="priceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="food" class="my-16">
+            <h3 class="text-3xl font-bold text-primary text-center mb-6">A Taste of Jharkhand</h3>
+            <p class="text-center text-gray-600 mb-8 max-w-3xl mx-auto">Jharkhand's cuisine is a delightful blend of simple, rustic flavors and unique local ingredients. Explore traditional dishes that tell the story of the land and its people.</p>
+            <div id="food-content" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            </div>
+        </section>
+
+        <section id="culture" class="my-16">
+            <h3 class="text-3xl font-bold text-primary text-center mb-6">Local Marketplace & Culture</h3>
+            <p class="text-center text-gray-600 mb-8 max-w-3xl mx-auto">Discover the vibrant heart of Jharkhand through its tribal art, handicrafts, and cultural events. Take home a piece of its unique heritage.</p>
+            <div id="culture-content" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            </div>
+        </section>
+
+        <section id="guides" class="my-16">
+             <h3 class="text-3xl font-bold text-primary text-center mb-6">Connect with Local Guides</h3>
+             <p class="text-center text-gray-600 mb-8 max-w-3xl mx-auto">Enhance your experience with a knowledgeable local guide. Our guides are passionate about sharing the stories and secrets of Jharkhand.</p>
+             <div id="guides-content" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+             </div>
+        </section>
+
+    </main>
+    
+    <footer class="bg-secondary text-secondary py-6 mt-16">
+        <div class="container mx-auto text-center">
+            <p>&copy; 2025 Explore Jharkhand. All rights reserved.</p>
+            <p class="text-sm">Created to showcase the beauty of Jharkhand.</p>
+        </div>
+    </footer>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    
+    const db = {
+        attractions: [
+            { name: "Dassam Falls, Ranchi", description: "A spectacular waterfall where the Kanchi River drops from a height of 44 meters. A popular picnic spot.", image: "https://placehold.co/600x400/739072/FFFFFF?text=Dassam+Falls" },
+            { name: "Betla National Park", description: "One of India's first national parks, home to tigers, elephants, and a diverse range of flora and fauna.", image: "https://placehold.co/600x400/4F6F52/FFFFFF?text=Betla+Park" },
+            { name: "Patratu Valley", description: "Famous for its breathtaking winding roads and the stunning Patratu Dam. A biker's paradise.", image: "https://placehold.co/600x400/A0937D/FFFFFF?text=Patratu+Valley" },
+            { name: "Baidyanath Jyotirlinga, Deoghar", description: "One of the twelve sacred Jyotirlingas in India, making it a major pilgrimage site for Hindus.", image: "https://placehold.co/600x400/D2A165/FFFFFF?text=Deoghar+Temple" },
+            { name: "Jubilee Park, Jamshedpur", description: "A large urban park, gifted by Tata Steel, featuring a zoo, gardens, and a musical fountain.", image: "https://placehold.co/600x400/739072/FFFFFF?text=Jubilee+Park" },
+            { name: "Netarhat", description: "Known as the 'Queen of Chotanagpur', this hill station is famous for its glorious sunrises and sunsets.", image: "https://placehold.co/600x400/4F6F52/FFFFFF?text=Netarhat" },
+        ],
+        gems: [
+            { name: "Lodh Falls", description: "The highest waterfall in Jharkhand, cascading down from a height of 143 meters in a series of drops.", image: "https://placehold.co/600x400/A0937D/FFFFFF?text=Lodh+Falls" },
+            { name: "Maluti Temples, Dumka", description: "A group of 72 extant terracotta temples in a small village, showcasing unique architecture and history.", image: "https://placehold.co/600x400/D2A165/FFFFFF?text=Maluti+Temples" },
+            { name: "McCluskieganj", description: "A quaint town once known as 'Mini London', with a unique Anglo-Indian history and charming old bungalows.", image: "https://placehold.co/600x400/739072/FFFFFF?text=McCluskieganj" },
+        ],
+        mapSpots: {
+            ranchi: { title: "Ranchi - The City of Waterfalls", description: "The capital city, known for its pleasant climate and numerous waterfalls like Dassam, Hundru, and Jonha. It's the gateway to many of Jharkhand's attractions." },
+            jamshedpur: { title: "Jamshedpur - The Steel City", description: "A well-planned industrial city, home to Tata Steel. It boasts beautiful parks like Jubilee Park and the scenic Dalma Wildlife Sanctuary nearby." },
+            netarhat: { title: "Netarhat - Queen of Chotanagpur", description: "A serene hill station offering stunning views, especially of the sunrise and sunset. It's a perfect escape for nature lovers." },
+            deoghar: { title: "Deoghar - The Spiritual Hub", description: "A major Hindu pilgrimage center, famous for the Baidyanath Temple. The city is vibrant during the Shravani Mela festival." },
+            hazaribagh: { title: "Hazaribagh - Land of a Thousand Gardens", description: "Known for the Hazaribagh Wildlife Sanctuary and Canary Hill. The region is also famous for its Sohrai and Khovar folk art." },
+        },
+        food: [
+            { name: "Litti Chokha", description: "A baked or fried wheat ball stuffed with sattu, served with a mash of potato, tomato, and eggplant.", image: "https://placehold.co/600x400/c7a57f/FFFFFF?text=Litti+Chokha" },
+            { name: "Dhuska", description: "A popular deep-fried snack made from a batter of rice and lentils, often served with ghugni (chickpea curry).", image: "https://placehold.co/600x400/d4ac87/FFFFFF?text=Dhuska" },
+            { name: "Rugra", description: "A type of indigenous mushroom that grows during the monsoon, cooked in a spicy gravy. A rare local delicacy.", image: "https://placehold.co/600x400/b89b74/FFFFFF?text=Rugra" },
+        ],
+        culture: [
+            { name: "Sohrai & Khovar Painting", description: "Traditional mural art practiced by tribal women. Sohrai is for harvest, and Khovar for weddings. Known for their intricate lines and natural motifs.", image: "https://placehold.co/600x400/4F6F52/FFFFFF?text=Sohrai+Art" },
+            { name: "Dokra Art", description: "A non-ferrous metal casting art using the lost-wax casting technique. This ancient art form produces stunning figurines and artifacts.", image: "https://placehold.co/600x400/739072/FFFFFF?text=Dokra+Art" },
+        ],
+        guides: [
+            { name: "Sanjay Oraon", speciality: "Wildlife & Trekking", image: "https://placehold.co/400x400/739072/FFFFFF?text=Sanjay" },
+            { name: "Anjali Kumari", speciality: "Culture & History", image: "https://placehold.co/400x400/4F6F52/FFFFFF?text=Anjali" },
+            { name: "Rohan Singh", speciality: "Adventure & Photography", image: "https://placehold.co/400x400/D2A165/FFFFFF?text=Rohan" },
+        ],
+    };
+
+    const generatePlanBtn = document.getElementById('generate-plan-btn');
+    const planOutput = document.getElementById('plan-output');
+    const planContent = document.getElementById('plan-content');
+    
+    generatePlanBtn.addEventListener('click', () => {
+        const destination = document.getElementById('destination').value;
+        const duration = document.getElementById('duration').value;
+        const interest = document.getElementById('interest').value;
+        
+        let plan = ``;
+        if (interest === 'Nature & Wildlife') {
+            plan = `
+                <p class="mb-2"><strong>Day 1:</strong> Arrive in Ranchi, check-in, and visit Rock Garden and Kanke Dam.</p>
+                <p class="mb-2"><strong>Day 2:</strong> Day trip to Dassam and Hundru Falls. Enjoy the natural beauty.</p>
+                <p class="mb-2"><strong>Day 3:</strong> Explore Betla National Park (if time permits, requires travel) or visit the local zoo before departure.</p>`;
+        } else if (interest === 'History & Culture') {
+            plan = `
+                <p class="mb-2"><strong>Day 1:</strong> Arrive in Ranchi, explore the Tribal Research Institute Museum.</p>
+                <p class="mb-2"><strong>Day 2:</strong> Visit historical sites around Ranchi like the Jagannath Temple and Sun Temple.</p>
+                <p class="mb-2"><strong>Day 3:</strong> Day trip to McCluskieganj to experience its unique Anglo-Indian heritage.</p>`;
+        } else {
+             plan = `
+                <p class="mb-2"><strong>Day 1:</strong> Arrive at your destination. Settle in and explore the local market.</p>
+                <p class="mb-2"><strong>Day 2:</strong> Visit the primary attractions based on your chosen destination, like Baidyanath Temple in Deoghar or Jubilee Park in Jamshedpur.</p>
+                <p class="mb-2"><strong>Day 3:</strong> Enjoy a final local breakfast and depart.</p>`;
+        }
+        
+        planContent.innerHTML = `<p class="mb-4">Here is a sample <strong>${duration}-day</strong> plan for <strong>${destination}</strong> with a focus on <strong>${interest}</strong>:</p>${plan}`;
+        planOutput.classList.remove('hidden');
+    });
+
+    const createCard = (item) => `
+        <div class="card overflow-hidden">
+            <img src="${item.image}" alt="${item.name}" class="w-full h-48 object-cover">
+            <div class="p-6">
+                <h4 class="text-xl font-bold text-primary">${item.name}</h4>
+                <p class="text-gray-600 mt-2">${item.description}</p>
+            </div>
+        </div>
+    `;
+
+    const attractionsContent = document.getElementById('attractions-content');
+    db.attractions.forEach(item => attractionsContent.innerHTML += createCard(item));
+
+    const gemsContent = document.getElementById('gems-content');
+    db.gems.forEach(item => gemsContent.innerHTML += createCard(item));
+
+    const foodContent = document.getElementById('food-content');
+    db.food.forEach(item => foodContent.innerHTML += createCard(item));
+    
+    const cultureContent = document.getElementById('culture-content');
+    db.culture.forEach(item => cultureContent.innerHTML += createCard(item));
+    
+    const guidesContent = document.getElementById('guides-content');
+    db.guides.forEach(guide => {
+        guidesContent.innerHTML += `
+            <div class="card text-center p-6">
+                <img src="${guide.image}" alt="${guide.name}" class="w-24 h-24 mx-auto rounded-full object-cover mb-4">
+                <h4 class="text-xl font-bold text-primary">${guide.name}</h4>
+                <p class="text-gray-600">Speciality: ${guide.speciality}</p>
+            </div>
+        `;
+    });
+
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            tabBtns.forEach(b => {
+                b.classList.remove('active', 'border-secondary', 'text-secondary');
+                b.classList.add('text-gray-500');
+            });
+            btn.classList.add('active', 'border-secondary', 'text-secondary');
+            btn.classList.remove('text-gray-500');
+
+            tabContents.forEach(content => content.classList.add('hidden'));
+            document.getElementById(`${btn.dataset.tab}-content`).classList.remove('hidden');
+        });
+    });
+    
+    const mapModal = document.getElementById('map-modal');
+    const closeModal = document.getElementById('close-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalDescription = document.getElementById('modal-description');
+    
+    document.querySelectorAll('.map-hotspot').forEach(spot => {
+        spot.addEventListener('click', () => {
+            const spotData = db.mapSpots[spot.dataset.spot];
+            if (spotData) {
+                modalTitle.textContent = spotData.title;
+                modalDescription.textContent = spotData.description;
+                mapModal.style.display = 'block';
+            }
+        });
+    });
+    
+    closeModal.onclick = () => mapModal.style.display = "none";
+    window.onclick = (event) => {
+        if (event.target == mapModal) {
+            mapModal.style.display = "none";
+        }
+    };
+    
+    const travelTabBtns = document.querySelectorAll('.travel-tab-btn');
+    travelTabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            travelTabBtns.forEach(b => {
+                b.classList.remove('active', 'border-secondary', 'text-secondary');
+                b.classList.add('text-gray-500');
+            });
+            btn.classList.add('active', 'border-secondary', 'text-secondary');
+            btn.classList.remove('text-gray-500');
+            document.getElementById('price-results').classList.add('hidden');
+        });
+    });
+    
+    const searchPricesBtn = document.getElementById('search-prices-btn');
+    const priceResults = document.getElementById('price-results');
+    const priceTableBody = document.getElementById('price-table-body');
+    let priceChartInstance = null;
+    
+    searchPricesBtn.addEventListener('click', () => {
+        const activeTab = document.querySelector('.travel-tab-btn.active').dataset.tab;
+        let data = [];
+        let chartData, chartLabels;
+        
+        if (activeTab === 'flights') {
+            data = [
+                { provider: 'IndiGo', route: 'DEL-IXR', price: 4500 },
+                { provider: 'Vistara', route: 'BOM-IXR', price: 6200 },
+                { provider: "AirAsia", route: "BLR-IXR", price: 5800 },
+            ];
+            chartLabels = data.map(d => d.provider);
+            chartData = data.map(d => d.price);
+        } else if (activeTab === 'trains') {
+            data = [
+                { provider: 'Rajdhani Express', route: 'NDLS-RNC', price: 2800 },
+                { provider: 'Garib Rath', route: 'HWH-RNC', price: 950 },
+                { provider: "Sampark Kranti", route: "ANVT-RNC", price: 1200 },
+            ];
+            chartLabels = data.map(d => d.provider);
+            chartData = data.map(d => d.price);
+        } else if (activeTab === 'hotels') {
+            data = [
+                { provider: 'Radisson Blu', route: 'Ranchi', price: 7500 },
+                { provider: 'Chanakya BNR', route: 'Ranchi', price: 5000 },
+                { provider: 'The Sonnet', route: 'Jamshedpur', price: 6000 },
+            ];
+            chartLabels = data.map(d => d.provider);
+            chartData = data.map(d => d.price);
+        }
+        
+        priceTableBody.innerHTML = '';
+        data.forEach(item => {
+            const row = `<tr>
+                <td class="py-2 px-4 border-b">${item.provider}</td>
+                <td class="py-2 px-4 border-b">${item.route}</td>
+                <td class="py-2 px-4 border-b text-right">${item.price.toLocaleString('en-IN')}</td>
+            </tr>`;
+            priceTableBody.innerHTML += row;
+        });
+        
+        priceResults.classList.remove('hidden');
+        
+        const ctx = document.getElementById('priceChart').getContext('2d');
+        if(priceChartInstance) {
+            priceChartInstance.destroy();
+        }
+        priceChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: chartLabels,
+                datasets: [{
+                    label: 'Estimated Price (INR)',
+                    data: chartData,
+                    backgroundColor: 'rgba(115, 144, 114, 0.6)',
+                    borderColor: 'rgba(79, 111, 82, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) { return '₹' + value; }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                         callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(context.parsed.y);
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    });
+
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+    mobileMenuButton.addEventListener('click', () => {
+        mobileMenu.classList.toggle('hidden');
+    });
+
+});
+</script>
+
+</body>
+</html>
